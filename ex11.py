@@ -51,9 +51,9 @@ class Diagnoser:
 
     def calculate_success_rate(self, records: list[Record]):
         """
-
-        :param records:
-        :return:
+        calculate the success rate for all the illness in records
+        :param records: List of records
+        :return: success rate
         """
         count = 0
         try:
@@ -65,8 +65,23 @@ class Diagnoser:
         except ValueError():
             return "\n*** records is empty! please try again ***"
 
-    def all_illnesses(self):
-        pass
+    def all_illnesses(self, current_node):
+        """
+
+        :return:
+        """
+        # Manually build a simple tree.
+        #                cough
+        #          Yes /       \ No
+        #        fever           healthy
+        #   Yes /     \ No
+        # covid-19   cold
+
+        all_illnesses_lst = list()
+        if current_node.negative_child is None:  # check if is leaf
+            all_illnesses_lst.append(current_node.data)
+        self.all_illnesses(current_node.positive_child)
+        self.all_illnesses(current_node.nagtive_child)
 
     def paths_to_illness(self, illness):
         pass
