@@ -1,5 +1,7 @@
 from typing import *
 
+import test_ex11
+
 
 class Node:
     def __init__(self, data, positive_child=None, negative_child=None):
@@ -60,34 +62,37 @@ class Diagnoser:
         """
         count = 0
         # TODO check if using of value error is correct
-        try:
+        if len(records) == 0:
+            raise ValueError('not good, records is empty')
+        else:
             for record in records:
                 diagnose = self.diagnose(record.symptoms)
                 if diagnose == record.illness:
                     count += 1
             return count / len(records)
-        except ValueError:
-            raise ValueError('"\n*** records is empty! please try again ***"')
 
-    def all_illnesses(self, current_node):
+    def all_illnesses(self):
         """
-
-        :param current_node:
+        the method will use the root of the class in return list of all illnesses
         :return:
         """
         all_illnesses_lst = list()
-        return self.all_illnesses_helper(current_node, all_illnesses_lst)
+        return list(set(self.all_illnesses_helper(self.root, all_illnesses_lst)))
 
-    def all_illnesses_helper(self, current_node, all_illnesses_lst):
+    def all_illnesses_helper(self, current_node: Node, all_illnesses_lst: List):
         """
 
         :return:
         """
         if current_node.negative_child is None:  # check if is leaf
-            all_illnesses_lst.append(current_node.data)
+            if current_node.data is None:
+                return []
+            else:
+                return [current_node.data]
 
-        self.all_illnesses(current_node.positive_child)
-        self.all_illnesses(current_node.nagtive_child)
+        pos = self.all_illnesses_helper(current_node.positive_child, all_illnesses_lst)
+        neg = self.all_illnesses_helper(current_node.negative_child, all_illnesses_lst)
+        return  neg + pos
 
     def paths_to_illness(self, illness):
         """
@@ -96,7 +101,6 @@ class Diagnoser:
         :return: list of lists with the path
         """
         current_node = self.root
-        current_list = list()
         current_path = list()
         return self.paths_to_illness_helper(illness, current_node, current_path)
 
