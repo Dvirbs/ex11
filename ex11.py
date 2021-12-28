@@ -1,5 +1,6 @@
 from typing import *
 
+
 class Node:
     def __init__(self, data, positive_child=None, negative_child=None):
         self.data = data
@@ -45,50 +46,160 @@ class Diagnoser:
         if current_node.negative_child is None:  # check if is leaf
             return current_node.data
         if current_node.data in symptoms:
-            self.diagnose_helper(symptoms, current_node.positive_child)
+            return self.diagnose_helper(symptoms, current_node.positive_child)
         else:
-            self.diagnose_helper(symptoms, current_node.negative_child)
+            return self.diagnose_helper(symptoms, current_node.negative_child)
 
     def calculate_success_rate(self, records: list[Record]):
         """
         calculate the success rate for all the illness in records
         :param records: List of records
+                        record.illness == “covid-19”
+                        record.symptoms == [“fever”, “fatigue”, “headache”, “nausea”]
         :return: success rate
         """
         count = 0
+        # TODO check if using of value error is correct
         try:
             for record in records:
                 diagnose = self.diagnose(record.symptoms)
                 if diagnose == record.illness:
                     count += 1
-            return count/int(len(records))
-        except ValueError():
-            return "\n*** records is empty! please try again ***"
+            return count / len(records)
+        except ValueError:
+            raise ValueError('"\n*** records is empty! please try again ***"')
 
     def all_illnesses(self, current_node):
         """
 
+        :param current_node:
         :return:
         """
-        # Manually build a simple tree.
-        #                cough
-        #          Yes /       \ No
-        #        fever           healthy
-        #   Yes /     \ No
-        # covid-19   cold
-
         all_illnesses_lst = list()
+        return self.all_illnesses_helper(current_node, all_illnesses_lst)
+
+    def all_illnesses_helper(self, current_node, all_illnesses_lst):
+        """
+
+        :return:
+        """
         if current_node.negative_child is None:  # check if is leaf
             all_illnesses_lst.append(current_node.data)
+
         self.all_illnesses(current_node.positive_child)
         self.all_illnesses(current_node.nagtive_child)
 
     def paths_to_illness(self, illness):
-        pass
+        """
+        building path of Bool list to the illness
+        :param illness: None str of the ilness that we want to find the path
+        :return: list of lists with the path
+        """
+        current_node = self.root
+        current_list = list()
+        current_path = list()
+        return self.paths_to_illness_helper(illness, current_node, current_path)
+
+    def paths_to_illness_helper(self, illness, current_node: Node, current_path: List):
+        """
+        building path of Bool list to the illness
+        :param illness: None str of the illness that we want to find the path
+        :param current_node:
+        :param current_path:
+        :param paths:
+        :return: list of lists with the path
+        """
+        if current_node.negative_child is None:
+            if current_node.data == illness:
+                return [current_path]
+            else:
+                return list()
+
+        positive = self.paths_to_illness_helper(illness, current_node.positive_child, current_path + [True])
+        negtive = self.paths_to_illness_helper(illness, current_node.negative_child, current_path + [False])
+        return positive + negtive
+
+
+def symptoms_valid(symptoms):
+    """
+    check if all the symptoms are string
+    :param symptoms: List of objects
+    :return: True if does and False otherwise
+    """
+    for symptom in symptoms:
+        if type(symptom) != str:
+            return False
+    return True
+
+
+def records_valid(records):
+    """
+    check if all the symptoms are string
+    :param symptoms: List of objects
+    :return: True if does and False otherwise
+    """
+    for record in records:
+        if type(records) != Record:
+            return False
+    return True
 
 
 def build_tree(records, symptoms):
-    pass
+    """
+
+    :param records: List of record object
+    :param symptoms: List of symptoms
+    :return:
+    """
+
+    if records_valid(records) and symptoms_valid(symptoms):
+        root = Node(symptoms[0])
+        build_tree_helper(records, symptoms, root, list(symptoms[0]))
+        return Diagnoser(root)
+    else:
+        raise TypeError()
+
+
+def chose_from_records(records, filtered_in_symptoms, filtered_out_symptoms):
+    """
+    choosing the the illnes from the records
+    :param records: List of record object
+                                    constructor -> Record (illness, symptoms)
+                                    record.illness == “covid-19”
+                                    record.symptoms == [“fever”, “fatigue”, “headache”, “nausea”]
+    :param filtered_in_symptoms:
+    :param filtered_out_symptoms:
+
+    :return: illness
+    """
+    for record in records:
+        same_symptoms = set(record.symptoms).intersection(set(filtered_in_symptoms))
+        different_symptoms = set(record.symptoms).intersection(set(filtered_out_symptoms))
+        if same_symptoms and not different_symptoms:
+            return record.illness
+        else:
+            return None
+
+
+def build_tree_helper(records, symptoms, current_node, filtered_in_symptoms):
+    """
+
+    :param records:
+    :param symptoms:
+    :param current_node: direction
+    :param filtered_in_symptoms:
+    :param filtered_out_symptoms:
+    :return:
+    """
+    if not symptoms:  # check if it is leaf
+        disease = chose_from_records(records, filtered_in_symptoms, set(symptoms).difference(set(filtered_in_symptoms)))
+        return disease
+    filtered_in_symptoms.append(symptoms[1])  # TODO some how i need to filltered only the symptoms of good child node
+    current_node.positive_child = Node(symptoms[1])
+    current_node.negative_child = Node(symptoms[1])
+
+    build_tree_helper(records, symptoms[1:], current_node.positive_child, filtered_in_symptoms)
+    build_tree_helper(records, symptoms[1:], current_node.negative_child, filtered_in_symptoms)
 
 
 def optimal_tree(records, symptoms, depth):
