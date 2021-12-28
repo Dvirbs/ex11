@@ -61,7 +61,6 @@ class Diagnoser:
         :return: success rate
         """
         count = 0
-        # TODO check if using of value error is correct
         if len(records) == 0:
             raise ValueError('not good, records is empty')
         else:
@@ -77,7 +76,7 @@ class Diagnoser:
         :return:
         """
         all_illnesses_lst = list()
-        return list(set(self.all_illnesses_helper(self.root, all_illnesses_lst)))
+        return self.all_illnesses_helper(self.root, all_illnesses_lst)
 
     def all_illnesses_helper(self, current_node: Node, all_illnesses_lst: List):
         """
@@ -85,14 +84,15 @@ class Diagnoser:
         :return:
         """
         if current_node.negative_child is None:  # check if is leaf
-            if current_node.data is None:
+            if current_node.data is None or current_node.data in all_illnesses_lst:
                 return []
             else:
+                all_illnesses_lst.append(current_node.data)
                 return [current_node.data]
 
         pos = self.all_illnesses_helper(current_node.positive_child, all_illnesses_lst)
         neg = self.all_illnesses_helper(current_node.negative_child, all_illnesses_lst)
-        return  neg + pos
+        return neg + pos
 
     def paths_to_illness(self, illness):
         """
@@ -124,7 +124,7 @@ class Diagnoser:
         return positive + negtive
 
 
-def symptoms_valid(symptoms):
+def symptoms_not_valid(symptoms):
     """
     check if all the symptoms are string
     :param symptoms: List of objects
@@ -132,20 +132,20 @@ def symptoms_valid(symptoms):
     """
     for symptom in symptoms:
         if type(symptom) != str:
-            return False
-    return True
+            return True
+    return False
 
 
-def records_valid(records):
+def records_not_valid(records):
     """
-    check if all the symptoms are string
-    :param symptoms: List of objects
+    check if all the records are Record Type
+    :param records: List of objects
     :return: True if does and False otherwise
     """
     for record in records:
-        if type(records) != Record:
-            return False
-    return True
+        if type(record) != Record:
+            return True
+    return False
 
 
 def build_tree(records, symptoms):
@@ -155,37 +155,39 @@ def build_tree(records, symptoms):
     :param symptoms: List of symptoms
     :return:
     """
-
-    if records_valid(records) and symptoms_valid(symptoms):
-        root = Node(symptoms[0])
-        build_tree_helper(records, symptoms, root, list(symptoms[0]))
-        return Diagnoser(root)
+    if records_not_valid(records) or symptoms_not_valid(symptoms):
+        raise TypeError('input of records or symptoms are not correct')
     else:
-        raise TypeError()
+        root = Node(symptoms[0])
+        filtered_pos_sym = []
+        filtered_neg_sym = []
+        build_tree_helper(records, symptoms[1:], root, filtered_pos_sym, filtered_neg_sym)
+        return Diagnoser(root)
 
 
-def chose_from_records(records, filtered_in_symptoms, filtered_out_symptoms):
+def chose_from_records(records, filtered_pos_sym, filtered_neg_sym) -> Optional[str]:
     """
     choosing the the illnes from the records
     :param records: List of record object
-                                    constructor -> Record (illness, symptoms)
-                                    record.illness == “covid-19”
-                                    record.symptoms == [“fever”, “fatigue”, “headache”, “nausea”]
     :param filtered_in_symptoms:
     :param filtered_out_symptoms:
 
-    :return: illness
+    :return: Node that is illness
     """
+    illness_list = list()
     for record in records:
-        same_symptoms = set(record.symptoms).intersection(set(filtered_in_symptoms))
-        different_symptoms = set(record.symptoms).intersection(set(filtered_out_symptoms))
-        if same_symptoms and not different_symptoms:
-            return record.illness
-        else:
-            return None
+        positive_path_symptoms = set(record.symptoms).intersection(set(filtered_pos_sym))
+        not_in_negative_path_symptoms = set(record.symptoms).difference(set(filtered_neg_sym))
+        if not_in_negative_path_symptoms and positive_path_symptoms:
+            illness_list.append(record.illness)
+    if illness_list:
+        maximum_impressions = max(illness_list, key=illness_list.count)
+        return maximum_impressions
+    else:
+        return None
 
 
-def build_tree_helper(records, symptoms, current_node, filtered_in_symptoms):
+def build_tree_helper(records, symptoms, current_node, filtered_pos_sym, filtered_neg_sym):
     """
 
     :param records:
@@ -196,18 +198,26 @@ def build_tree_helper(records, symptoms, current_node, filtered_in_symptoms):
     :return:
     """
     if not symptoms:  # check if it is leaf
-        disease = chose_from_records(records, filtered_in_symptoms, set(symptoms).difference(set(filtered_in_symptoms)))
-        return disease
-    filtered_in_symptoms.append(symptoms[1])  # TODO some how i need to filltered only the symptoms of good child node
-    current_node.positive_child = Node(symptoms[1])
-    current_node.negative_child = Node(symptoms[1])
+        disease: Optional[str] = chose_from_records(records, filtered_pos_sym, filtered_neg_sym)
+        current_node = Node(disease)
+        return current_node
+    current_node.positive_child = Node(symptoms[0])
+    current_node.negative_child = Node(symptoms[0])
 
-    build_tree_helper(records, symptoms[1:], current_node.positive_child, filtered_in_symptoms)
-    build_tree_helper(records, symptoms[1:], current_node.negative_child, filtered_in_symptoms)
+    pos = filtered_pos_sym[:]
+    pos.append(symptoms[0])
+    neg = filtered_neg_sym[:]
+    current_node.positive_child = build_tree_helper(records, symptoms[1:], current_node.positive_child, pos, neg)
+    pos = pos[:-1]
+    neg.append(symptoms[0])
+    current_node.negative_child = build_tree_helper(records, symptoms[1:], current_node.negative_child, pos, neg)
 
 
 def optimal_tree(records, symptoms, depth):
-    pass
+    if depth == 0:
+        return Diagnoser(Node(None))
+    elif depth < 0 or depth > len(symptoms):
+        raise ValueError
 
 
 if __name__ == "__main__":
