@@ -1,4 +1,5 @@
 from typing import *
+from itertools import combinations
 
 import test_ex11
 
@@ -52,7 +53,7 @@ class Diagnoser:
         else:
             return self.diagnose_helper(symptoms, current_node.negative_child)
 
-    def calculate_success_rate(self, records: list[Record]):
+    def calculate_success_rate(self, records: list[Record]) -> float:
         """
         calculate the success rate for all the illness in records
         :param records: List of records
@@ -132,7 +133,7 @@ def symptoms_not_valid(symptoms):
     """
     for symptom in symptoms:
         if type(symptom) != str:
-            return True
+            raise TypeError('bad symptoms')
     return False
 
 
@@ -144,7 +145,7 @@ def records_not_valid(records):
     """
     for record in records:
         if type(record) != Record:
-            return True
+            raise TypeError('bad records')
     return False
 
 
@@ -158,10 +159,10 @@ def build_tree(records, symptoms):
     if records_not_valid(records) or symptoms_not_valid(symptoms):
         raise TypeError('input of records or symptoms are not correct')
     else:
-        root = Node(symptoms[0])
+        root = Node(None)
         filtered_pos_sym = []
         filtered_neg_sym = []
-        build_tree_helper(records, symptoms[1:], root, filtered_pos_sym, filtered_neg_sym)
+        build_tree_helper(records, symptoms[:], root, filtered_pos_sym, filtered_neg_sym)
         return Diagnoser(root)
 
 
@@ -176,10 +177,16 @@ def chose_from_records(records, filtered_pos_sym, filtered_neg_sym) -> Optional[
     """
     illness_list = list()
     for record in records:
-        positive_path_symptoms = set(record.symptoms).intersection(set(filtered_pos_sym))
-        not_in_negative_path_symptoms = set(record.symptoms).difference(set(filtered_neg_sym))
-        if not_in_negative_path_symptoms and positive_path_symptoms:
+        flag = True
+        for pos_sym in filtered_pos_sym:
+            if pos_sym not in record.symptoms:
+                flag = False
+        for neg_sym in filtered_neg_sym:
+            if neg_sym in record.symptoms:
+                flag = False
+        if flag:
             illness_list.append(record.illness)
+
     if illness_list:
         maximum_impressions = max(illness_list, key=illness_list.count)
         return maximum_impressions
@@ -199,49 +206,76 @@ def build_tree_helper(records, symptoms, current_node, filtered_pos_sym, filtere
     """
     if not symptoms:  # check if it is leaf
         disease: Optional[str] = chose_from_records(records, filtered_pos_sym, filtered_neg_sym)
-        current_node = Node(disease)
-        return current_node
-    current_node.positive_child = Node(symptoms[0])
-    current_node.negative_child = Node(symptoms[0])
+        current_node.data = disease
+        return
+    current_node.data = symptoms[0]
+    current_node.positive_child = Node(None)
+    current_node.negative_child = Node(None)
 
     pos = filtered_pos_sym[:]
-    pos.append(symptoms[0])
+    pos.append(current_node.data)
     neg = filtered_neg_sym[:]
-    current_node.positive_child = build_tree_helper(records, symptoms[1:], current_node.positive_child, pos, neg)
+    build_tree_helper(records, symptoms[1:], current_node.positive_child, pos, neg)
     pos = pos[:-1]
-    neg.append(symptoms[0])
-    current_node.negative_child = build_tree_helper(records, symptoms[1:], current_node.negative_child, pos, neg)
+    neg.append(current_node.data)
+    build_tree_helper(records, symptoms[1:], current_node.negative_child, pos, neg)
 
 
 def optimal_tree(records, symptoms, depth):
     if depth == 0:
         return Diagnoser(Node(None))
-    elif depth < 0 or depth > len(symptoms):
-        raise ValueError
+    if depth < 0 or depth > len(symptoms):
+        raise ValueError('Bad depth')
+    if len(symptoms) is not len(set(symptoms)):
+        raise ValueError('symptoms depth')
+    maxi = - depth
+    current_root = Node(None)
+    for x in combinations(symptoms, depth):
+        tree = build_tree(records, x)
+        rate = tree.calculate_success_rate(records)
+        if maxi < rate:
+            maxi = rate
+            current_root = tree.root
+    return Diagnoser(current_root)
+
+
+
+import pydot
+
+
+def tree_to_graph(tree, graph):
+    if not tree.positive_child:
+        label = 'None' if tree.data is None else tree.data
+        leaf = pydot.Node(id(tree), label=label, shape="box")
+        graph.add_node(leaf)
+        return leaf
+
+    root = pydot.Node(id(tree), label=tree.data, shape="circle")
+    graph.add_node(root)
+    pos_node = tree_to_graph(tree.positive_child, graph)
+    graph.add_edge(pydot.Edge(root, pos_node, label="Yes"))
+
+    neg_node = tree_to_graph(tree.negative_child, graph)
+    graph.add_edge(pydot.Edge(root, neg_node, label="No"))
+
+    return root
+
+
+def draw_tree(tree, filename):
+    graph = pydot.Dot(graph_type='graph')
+    tree_to_graph(tree, graph)
+    graph.write(filename)
 
 
 if __name__ == "__main__":
+    # record1 = Record("influenza", ["cough", "fever"])
+    # record2 = Record("cold", ["cough"])
+    # record3 = Record("covid-19", ["headache"])
+    # records = [record1, record2]
+    # x = build_tree(records, ["fever"])
+    # draw_tree(x.root, "Tree.txt")
 
-    # Manually build a simple tree.
-    #                cough
-    #          Yes /       \ No
-    #        fever           healthy
-    #   Yes /     \ No
-    # covid-19   cold
-
-    flu_leaf = Node("covid-19", None, None)
-    cold_leaf = Node("cold", None, None)
-    inner_vertex = Node("fever", flu_leaf, cold_leaf)
-    healthy_leaf = Node("healthy", None, None)
-    root = Node("cough", inner_vertex, healthy_leaf)
-
-    diagnoser = Diagnoser(root)
-
-    # Simple test
-    diagnosis = diagnoser.diagnose(["cough"])
-    if diagnosis == "cold":
-        print("Test passed")
-    else:
-        print("Test failed. Should have printed cold, printed: ", diagnosis)
-
-# Add more tests for sections 2-7 here.
+    symptoms = ['a', 'b', 'd', 'g', 'k', 'a']
+    records = parse_data("test_all_illnesses.txt")
+    tree = build_tree(records, symptoms)
+    draw_tree(tree.root, "Tree.txt")
