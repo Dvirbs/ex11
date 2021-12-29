@@ -71,13 +71,25 @@ class Diagnoser:
                     count += 1
             return count / len(records)
 
+    def sorted_by_freq(self, not_sorted) -> List:
+        sorted_list = sorted(not_sorted, key=not_sorted.count, reverse=True)
+        sorted_no_duplicates = list()
+        for string in sorted_list:
+            if string not in sorted_no_duplicates:
+                sorted_no_duplicates.append(string)
+        return sorted_no_duplicates
+
     def all_illnesses(self):
         """
         the method will use the root of the class in return list of all illnesses
         :return:
         """
         all_illnesses_lst = list()
-        return self.all_illnesses_helper(self.root, all_illnesses_lst)
+        all_illnesses_not_sorted = self.all_illnesses_helper(self.root, all_illnesses_lst)
+        #all_illnesses_sorted = sorted(all_illnesses_not_sorted, key=all_illnesses_not_sorted.count, reverse=True)
+        all_illnesses_sorted = self.sorted_by_freq(all_illnesses_not_sorted)
+
+        return all_illnesses_sorted
 
     def all_illnesses_helper(self, current_node: Node, all_illnesses_lst: List):
         """
@@ -85,7 +97,7 @@ class Diagnoser:
         :return:
         """
         if current_node.negative_child is None:  # check if is leaf
-            if current_node.data is None or current_node.data in all_illnesses_lst:
+            if current_node.data is None:  # or current_node.data in all_illnesses_lst
                 return []
             else:
                 all_illnesses_lst.append(current_node.data)
@@ -237,7 +249,6 @@ def optimal_tree(records, symptoms, depth):
             maxi = rate
             current_root = tree.root
     return Diagnoser(current_root)
-
 
 
 import pydot
