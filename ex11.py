@@ -10,6 +10,34 @@ class Node:
         self.positive_child = positive_child
         self.negative_child = negative_child
 
+    def minimize_helper(self, remove_empty=False):
+        """
+        Replacing the decision tree with an equivalent tree where we lowered unnecessary vertices
+        :param self:
+        :param remove_empty:
+        :return:
+        """
+        if self.positive_child is None and self.negative_child is None:
+            return False
+        # if remove_empty is True and current_node.negative_child is None:
+        #     current_node = current_node.positive_child
+        # if remove_empty is True and current_node.positive_child is None:
+        #     current_node = current_node.negative_child
+        if self.positive_child.minimize_helper():
+            self.positive_child = self.positive_child.positive_child
+        if self.negative_child.minimize_helper():
+            self.negative_child = self.negative_child.negative_child
+
+        if self.same_roots(self.negative_child, self.positive_child):
+            return True
+
+    def same_roots(self, root1, root2):
+        if root1 == root2:
+            return True
+        else:
+            return False
+
+
 
 class Record:
     def __init__(self, illness, symptoms):
@@ -86,7 +114,6 @@ class Diagnoser:
         """
         all_illnesses_lst = list()
         all_illnesses_not_sorted = self.all_illnesses_helper(self.root, all_illnesses_lst)
-        #all_illnesses_sorted = sorted(all_illnesses_not_sorted, key=all_illnesses_not_sorted.count, reverse=True)
         all_illnesses_sorted = self.sorted_by_freq(all_illnesses_not_sorted)
 
         return all_illnesses_sorted
@@ -136,6 +163,15 @@ class Diagnoser:
         negtive = self.paths_to_illness_helper(illness, current_node.negative_child, current_path + [False])
         return positive + negtive
 
+    def minimize(self, remove_empty=False):
+        """
+        Replacing the decision tree with an equivalent tree where we lowered unnecessary vertices
+        :param self:
+        :param remove_empty:
+        :return:
+        """
+        self.minimize_helper()
+
 
 def symptoms_not_valid(symptoms):
     """
@@ -161,6 +197,45 @@ def records_not_valid(records):
     return False
 
 
+def empty_symptoms(symptoms: List, records: List[Record]) -> bool:
+    """
+    check if the symptoms are empty or dont match any of the records disease
+    or if none of the symptoms are in the records disease
+    :param symptoms:
+    :param records:
+    :return: True if Does and False else
+    """
+    if not symptoms:
+        return True
+    # else:
+    #     illness_list = all_record_illness(records)
+    #     if not set(symptoms).intersection(set(illness_list)):  # check if it empty
+    #         return True
+
+
+def all_record_illness(records):
+    """
+    find all the records illness
+    :param records:
+    :return:
+    """
+    illness_list = list()
+    for record in records:
+        illness_list.append(record.illness)
+    return illness_list
+
+
+def common_disease(records):
+    """
+
+    :param records:
+    :return:
+    """
+    illness_list = all_record_illness(records)
+    maximum_impressions = max(illness_list, key=illness_list.count)
+    return maximum_impressions
+
+
 def build_tree(records, symptoms):
     """
 
@@ -170,6 +245,10 @@ def build_tree(records, symptoms):
     """
     if records_not_valid(records) or symptoms_not_valid(symptoms):
         raise TypeError('input of records or symptoms are not correct')
+    # if empty_symptoms(symptoms, records):
+    #      maximum_impressions = common_disease(records)
+    #      commom_root = Diagnoser(Node(maximum_impressions))
+    #      return commom_root
     else:
         root = Node(None)
         filtered_pos_sym = []
@@ -251,34 +330,35 @@ def optimal_tree(records, symptoms, depth):
     return Diagnoser(current_root)
 
 
-import pydot
-
-
-def tree_to_graph(tree, graph):
-    if not tree.positive_child:
-        label = 'None' if tree.data is None else tree.data
-        leaf = pydot.Node(id(tree), label=label, shape="box")
-        graph.add_node(leaf)
-        return leaf
-
-    root = pydot.Node(id(tree), label=tree.data, shape="circle")
-    graph.add_node(root)
-    pos_node = tree_to_graph(tree.positive_child, graph)
-    graph.add_edge(pydot.Edge(root, pos_node, label="Yes"))
-
-    neg_node = tree_to_graph(tree.negative_child, graph)
-    graph.add_edge(pydot.Edge(root, neg_node, label="No"))
-
-    return root
-
-
-def draw_tree(tree, filename):
-    graph = pydot.Dot(graph_type='graph')
-    tree_to_graph(tree, graph)
-    graph.write(filename)
+# import pydot
+#
+#
+# def tree_to_graph(tree, graph):
+#     if not tree.positive_child:
+#         label = 'None' if tree.data is None else tree.data
+#         leaf = pydot.Node(id(tree), label=label, shape="box")
+#         graph.add_node(leaf)
+#         return leaf
+#
+#     root = pydot.Node(id(tree), label=tree.data, shape="circle")
+#     graph.add_node(root)
+#     pos_node = tree_to_graph(tree.positive_child, graph)
+#     graph.add_edge(pydot.Edge(root, pos_node, label="Yes"))
+#
+#     neg_node = tree_to_graph(tree.negative_child, graph)
+#     graph.add_edge(pydot.Edge(root, neg_node, label="No"))
+#
+#     return root
+#
+#
+# def draw_tree(tree, filename):
+#     graph = pydot.Dot(graph_type='graph')
+#     tree_to_graph(tree, graph)
+#     graph.write(filename)
 
 
 if __name__ == "__main__":
+    pass
     # record1 = Record("influenza", ["cough", "fever"])
     # record2 = Record("cold", ["cough"])
     # record3 = Record("covid-19", ["headache"])
@@ -286,7 +366,7 @@ if __name__ == "__main__":
     # x = build_tree(records, ["fever"])
     # draw_tree(x.root, "Tree.txt")
 
-    symptoms = ['a', 'b', 'd', 'g', 'k', 'a']
-    records = parse_data("test_all_illnesses.txt")
-    tree = build_tree(records, symptoms)
-    draw_tree(tree.root, "Tree.txt")
+    # symptoms = ['a', 'b', 'd', 'g', 'k', 'a']
+    # records = parse_data("test_all_illnesses.txt")
+    # tree = build_tree(records, symptoms)
+    # draw_tree(tree.root, "Tree.txt")
